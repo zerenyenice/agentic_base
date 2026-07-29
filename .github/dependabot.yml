@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # Keeps pinned action SHAs fresh: Dependabot opens a PR bumping the SHA
+  # and the trailing "# vX.Y.Z" comment together whenever a pinned action
+  # cuts a new release.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # No Python dependencies yet — setup-harness.py is stdlib-only and there is
+  # no requirements.txt. Uncomment when the project gains a Python dependency
+  # surface (e.g. a backend service is added under this template).
+  # - package-ecosystem: "pip"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"

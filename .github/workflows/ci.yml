@@ -1,0 +1,212 @@
+name: CI
+
+# This repo ships no application (no package.json/pyproject.toml/tests) — it
+# is the agent-harness template itself. CI therefore protects the template's
+# own integrity: generated surfaces must match their sources, shell/JSON
+# config must parse and lint clean, and every commit must carry this
+# project's git-protocol trailers. See docs/CI.md for the full rationale and
+# local repro commands for each job below.
+
+on:
+  pull_request:
+    branches: [main, dev, stage]
+  push:
+    branches: [main, dev, stage]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Core check: .claude/agents/, .github/agents/, .github/copilot-instructions.md,
+  # AGENTS.md, .github/prompts/, .github/instructions/ are all GENERATED from
+  # CLAUDE.md / .agents_base/ / .claude/{commands,rules} by setup-harness.py.
+  # If a generated surface was hand-edited (or a source changed and the
+  # generator wasn't re-run), regenerating produces a diff — that diff is the
+  # failure signal.
+  harness-sync:
+    name: harness-sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate harness surfaces from sources
+        run: python3 setup-harness.py --target all
+
+      - name: Fail on drift between sources and generated surfaces
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Generated harness surfaces are out of sync with their sources."
+            echo "A generated file was hand-edited, or a source changed without" \
+                 "re-running the generator. Fix locally with:"
+            echo "    python3 setup-harness.py --target all"
+            echo "then commit the sources AND the regenerated files together."
+            echo ""
+            echo "Drifted paths (modified + and/or untracked ?? ):"
+            git status --porcelain
+            exit 1
+          fi
+          echo "Generated harness surfaces match their sources."
+
+  # setup-harness.py is the one piece of executable logic in this repo; the
+  # shell scripts under .claude/scripts and .claude/skills are the rest.
+  lint-shell:
+    name: lint-shell
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Shellcheck all tracked shell scripts
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files '*.sh')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No tracked shell scripts; nothing to check."
+            exit 0
+          fi
+          echo "Checking:"
+          printf '  %s\n' "${files[@]}"
+          # (ShellCheck itself is preinstalled on ubuntu-latest runners.)
+          shellcheck "${files[@]}"
+
+  # actionlint catches schema errors, unknown contexts, and shell-injection
+  # patterns in run: blocks that a YAML parser alone would miss. The binary
+  # is downloaded from the project's GitHub Releases and checksum-verified
+  # rather than trusted from a third-party wrapper action.
+  lint-workflows:
+    name: lint-workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      ACTIONLINT_VERSION: "1.7.12"
+      ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download and checksum-verify actionlint
+        run: |
+          set -euo pipefail
+          asset="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSL -o "$asset" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${asset}"
+          echo "${ACTIONLINT_SHA256}  ${asset}" | sha256sum -c -
+          tar -xzf "$asset" actionlint
+          ./actionlint -version
+
+      - name: Run actionlint
+        run: ./actionlint -color .github/workflows/*.yml
+
+  # Every tracked .json file must parse — .mcp.json, .claude/mcp-configs/*,
+  # and any settings files a contributor might add.
+  validate-json:
+    name: validate-json
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Parse every tracked JSON file
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files '*.json')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No tracked JSON files; nothing to check."
+            exit 0
+          fi
+          failed=0
+          for f in "${files[@]}"; do
+            if python3 -m json.tool "$f" > /dev/null; then
+              echo "OK   $f"
+            else
+              echo "::error::Invalid JSON: $f"
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+  # This repo's git protocol (rules/common/git-workflow.md) requires every
+  # commit to carry a conventional-commit type prefix plus Agent:/Task:
+  # trailers, so history alone is a reconstructable audit trail. This job is
+  # the machine-enforced version of that check for PR ranges.
+  commit-protocol:
+    name: commit-protocol
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: "Validate conventional type + Agent:/Task: trailers on every non-merge commit"
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          merge_base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          mapfile -t commits < <(git rev-list --no-merges "${merge_base}..${HEAD_SHA}")
+
+          if [ "${#commits[@]}" -eq 0 ]; then
+            echo "No non-merge commits in range ${merge_base}..${HEAD_SHA}; nothing to check."
+            exit 0
+          fi
+
+          type_re='^(feat|fix|refactor|docs|test|chore|perf|ci)(\([a-zA-Z0-9_./-]+\))?: .+'
+          overall=0
+
+          for sha in "${commits[@]}"; do
+            subject=$(git show -s --format=%s "$sha")
+            body=$(git show -s --format=%B "$sha")
+            commit_failed=0
+
+            if ! printf '%s\n' "$subject" | grep -Eq "$type_re"; then
+              echo "::error::commit $sha missing conventional type prefix (feat|fix|refactor|docs|test|chore|perf|ci): $subject"
+              commit_failed=1
+            fi
+            if ! printf '%s\n' "$body" | grep -Eq '^Agent: .+'; then
+              echo "::error::commit $sha missing 'Agent:' trailer: $subject"
+              commit_failed=1
+            fi
+            if ! printf '%s\n' "$body" | grep -Eq '^Task: .+'; then
+              echo "::error::commit $sha missing 'Task:' trailer: $subject"
+              commit_failed=1
+            fi
+
+            if [ "$commit_failed" -eq 1 ]; then
+              overall=1
+            fi
+          done
+
+          if [ "$overall" -eq 1 ]; then
+            echo "One or more commits violate the commit protocol (rules/common/git-workflow.md)."
+            exit 1
+          fi
+          echo "All ${#commits[@]} commit(s) in range satisfy the commit protocol."
