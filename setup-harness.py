@@ -70,7 +70,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 COPILOT_MODEL = "Claude Sonnet 4.5"
-CLAUDE_MODEL_ALIASES = {"sonnet", "opus", "haiku", "inherit"}
+CLAUDE_MODEL_ALIASES = {"sonnet", "opus", "haiku", "fable", "inherit"}
 CLAUDE_TOOLS = {"Read", "Write", "Edit", "Bash", "Grep", "Glob",
                 "WebFetch", "WebSearch", "Task", "NotebookEdit"}
 
