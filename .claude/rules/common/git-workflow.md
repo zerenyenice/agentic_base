@@ -219,10 +219,13 @@ Never skip trailers.
   memory, NOT to git.
 - **B11. Process/template changes (meta)** — edits to `CLAUDE.md`,
   `.github/copilot-instructions.md`, `.claude/**` (agents, rules, skills,
-  commands) commit as `chore(process): <desc>`. **Sync invariant:** `CLAUDE.md`
-  and `.github/copilot-instructions.md` must change in the SAME commit — a
-  commit touching one without the other is a protocol violation the Lead must
-  refuse to make.
+  commands) commit as `chore(process): <desc>`. **Sync invariant:** in
+  projects that carry generated Copilot surfaces (harness target
+  vscode/pycharm/all), `CLAUDE.md` and `.github/copilot-instructions.md` must
+  change in the SAME commit — a commit touching one without the other is a
+  protocol violation the Lead must refuse to make. (The Claude-only base
+  ships no Copilot surfaces; there the invariant is discharged by
+  regenerating with `--target claude` before committing.)
 - **B12. Releases / milestones (optional, lightweight)** — when the user
   declares a milestone, the Lead may create an annotated tag
   (`git tag -a v0.1.0 -m "<summary>"`). No mandated versioning scheme —

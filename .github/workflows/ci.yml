@@ -42,8 +42,13 @@ jobs:
         with:
           python-version: "3.12"
 
+      # The base template ships Claude-only surfaces (.claude/); Copilot
+      # surfaces (.github/agents, prompts, instructions, AGENTS.md,
+      # copilot-instructions.md) are generated per project when a team picks
+      # a vscode/pycharm/all target. Project copies that switch targets
+      # should update this line to match their committed state.
       - name: Regenerate harness surfaces from sources
-        run: python3 setup-harness.py --target all
+        run: python3 setup-harness.py --target claude
 
       - name: Fail on drift between sources and generated surfaces
         run: |
@@ -52,7 +57,7 @@ jobs:
             echo "::error::Generated harness surfaces are out of sync with their sources."
             echo "A generated file was hand-edited, or a source changed without" \
                  "re-running the generator. Fix locally with:"
-            echo "    python3 setup-harness.py --target all"
+            echo "    python3 setup-harness.py --target claude   # or your project's target"
             echo "then commit the sources AND the regenerated files together."
             echo ""
             echo "Drifted paths (modified + and/or untracked ?? ):"
