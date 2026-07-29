@@ -157,26 +157,33 @@ Intended ruleset, applied to `dev`, `stage`, and `main`:
   documented protocol exceptions (bootstrap commit, `PROJECT.md` updates,
   explicitly user-directed template/process changes per
   `rules/common/git-workflow.md` B11).
-- **Require these status checks to pass** (names must match the job `name:`
-  values above exactly):
-  - `harness-sync`
-  - `lint-shell`
-  - `lint-workflows`
-  - `validate-json`
-  - `secret-scan`
+- **Split the rules into TWO rulesets.** GitHub bypass actors bypass an
+  *entire* ruleset — bypass cannot be scoped to a single rule inside one.
+  A combined ruleset with an admin bypass would silently let the bypass skip
+  the CI and secret-scan gates too, not just the review requirement
+  (security-reviewer finding, MEDIUM). Therefore:
 
-  (`commit-protocol` only runs `if: github.event_name == 'pull_request'`;
-  include it too if the ruleset UI is configured per-branch-with-PR-context —
-  otherwise it's still enforced in practice since every merge here goes
-  through a PR.)
-- **Require branches to be up to date before merging.**
-- **On `stage` and `main` only:** require at least 1 approving review, and
-  require review from a Code Owner (pairs with `.github/CODEOWNERS` — see
-  its header comment). Repo admins may bypass for solo-maintainer periods;
-  tighten this once collaborators join.
-- **Block force-pushes and branch deletion** on all three branches — mirrors
-  the protocol's forbidden-operations list
-  (`rules/common/git-workflow.md` § Forbidden Operations).
+  **Ruleset A — integrity gates (`dev`, `stage`, `main`; NO bypass actors):**
+  - Require these status checks to pass (names must match the job `name:`
+    values above exactly):
+    - `harness-sync`
+    - `lint-shell`
+    - `lint-workflows`
+    - `validate-json`
+    - `secret-scan`
+    - `commit-protocol` (runs on every PR; include it — it enforces the
+      git-audit-trail guarantee the whole protocol depends on)
+  - Require branches to be up to date before merging.
+  - Block force-pushes and branch deletion — mirrors the protocol's
+    forbidden-operations list (`rules/common/git-workflow.md` § Forbidden
+    Operations).
+
+  **Ruleset B — review gates (`stage`, `main` only; bypass: repo admin):**
+  - Require at least 1 approving review, and require review from a Code
+    Owner (pairs with `.github/CODEOWNERS` — see its header comment).
+  - The repo-admin bypass exists for solo-maintainer periods (a PR author
+    cannot approve their own PR); remove or narrow it once collaborators
+    join. It never weakens Ruleset A — CI must pass regardless.
 
 None of the above is applied by this change — it is a specification for the
 Lead/user to apply once, via `gh api repos/<owner>/<repo>/rulesets` (or

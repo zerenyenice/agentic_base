@@ -107,7 +107,7 @@ jobs:
         run: |
           set -euo pipefail
           asset="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          curl -sSL -o "$asset" \
+          curl -fsSL -o "$asset" \
             "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${asset}"
           echo "${ACTIONLINT_SHA256}  ${asset}" | sha256sum -c -
           tar -xzf "$asset" actionlint
