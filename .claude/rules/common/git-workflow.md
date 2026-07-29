@@ -116,11 +116,12 @@ CI re-runs the suite on the base branch via the push trigger; the Lead pulls
 the merged base and confirms that run is green before declaring the task
 done — two individually green branches can still merge into a broken state.
 
-**Branch hygiene.** After the PR merges, delete the remote task branch (via
-the PR's delete-branch option or `git push origin --delete <branch>`), pull
-the base branch, and delete the local task branch (`git branch -d <branch>`
-— `-d`, never `-D`). The base branch plus live task branches is the steady
-state.
+**Branch hygiene.** The repo setting "Automatically delete head branches"
+(`delete_branch_on_merge`, enabled at bootstrap) removes the remote task
+branch when its PR merges — the protected base branches are never affected
+(deletion-blocked by ruleset). The Lead then pulls the base branch and
+deletes the local task branch (`git branch -d <branch>` — `-d`, never
+`-D`). The base branch plus live task branches is the steady state.
 
 ## The Gates
 
