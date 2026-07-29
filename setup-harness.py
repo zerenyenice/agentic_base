@@ -63,6 +63,7 @@ Usage:
 import argparse
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -299,6 +300,24 @@ def validate_claude_agents() -> bool:
     return ok
 
 
+def check_github_access():
+    """Non-fatal first-time check: the devops agent, /pr workflow, and
+    Research-phase `gh search` all need an authenticated GitHub CLI.
+    One-time per machine — see .claude/skills/github-setup/SKILL.md."""
+    if shutil.which("gh") is None:
+        print("\nGitHub access: gh CLI NOT installed — required by the devops "
+              "agent and the /pr workflow.\n"
+              "  One-time setup: bash .claude/scripts/setup-gh.sh")
+        return
+    status = subprocess.run(["gh", "auth", "status"],
+                            capture_output=True, text=True)
+    if status.returncode != 0:
+        print("\nGitHub access: gh is installed but NOT authenticated.\n"
+              "  One-time setup: bash .claude/scripts/setup-gh.sh")
+    else:
+        print("\nGitHub access: gh authenticated — devops agent and /pr ready.")
+
+
 # ----------------------------------------------------------------------- main
 
 def main():
@@ -361,6 +380,8 @@ def main():
               "  - Copilot custom agents load from .github/agents/*.agent.md\n"
               "    (agents dropdown in Copilot Chat; GA since 2026-03).\n"
               "  - Instructions load from .github/copilot-instructions.md.")
+
+    check_github_access()
 
     print("\nDone. Re-run this script with the same target after editing "
           "CLAUDE.md, .agents_base/, or .claude/{commands,rules}; commit "
