@@ -12,6 +12,7 @@ Located in `~/.claude/agents/`:
 | frontend-reviewer | React/TypeScript code review (read-only) | After frontend-coder writes/modifies code |
 | tester | Creates and runs unit/integration/E2E tests (has edit access) | New features, bug fixes, before merge |
 | security-reviewer | Security analysis (read-only) | Before commits, sensitive code |
+| devops | CI/CD diagnosis and pipeline config (edits CI config only; git- and GitHub-mutation-restricted) | Failing CI runs, workflow authoring, PR check status before merge |
 
 Planning and architecture stay with the Lead (the main agent) — there is no
 dedicated planning/architecture subagent. Build fixes and dead-code sweeps are

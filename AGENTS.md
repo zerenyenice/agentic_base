@@ -1,0 +1,262 @@
+# Project Agent Instructions
+
+This project's `.claude/` setup (agents, commands, skills, rules) is trimmed for a
+three-person engineering team — **Lead**, **Coder** (backend Python/FastAPI +
+frontend React/TypeScript), **Tester** (testing + security) — providing 7
+specialized agents, 27 skills, and 19 commands for software development. This
+setup is meant to be reused across project teams; each team's actual customer
+and business context lives in `/PROJECT.md`, not in this file.
+
+## `/PROJECT.md` Is the Source of Truth (MANDATORY)
+
+`/PROJECT.md` is filled in by the project team (product owner, tech lead,
+business analyst, solution architect) with the customer's actual requirements,
+scope, constraints, and acceptance criteria gathered from meetings. **Every
+development task given to this agent system — planning, implementation,
+testing, review, or commit — must be checked against it before work starts.**
+
+- **Feasibility gate**: if the requested task is out of scope (§4 Scope and
+  Requirements), conflicts with a documented business rule, a security/privacy/
+  compliance constraint (§7), or an AI/agent acceptance condition (§8), stop and
+  raise the conflict with the user before doing any work. Do not silently
+  narrow, expand, or reinterpret scope to make a request "fit."
+- **Unfilled-section gate**: if the relevant section is still a `[FILL FREELY]`
+  placeholder, tell the user that part of the project context hasn't been
+  defined yet — don't assume or invent it on the team's behalf.
+- **Read, don't write**: `/PROJECT.md` is project-team-maintained (per its own
+  header: "Editable by coding agents: Only when explicitly instructed"). Do not
+  edit it unless a human on the project team explicitly instructs you to.
+- **Requirement history is diffable**: PROJECT.md edits (by the team, or by an
+  agent explicitly instructed) are committed standalone to the base branch as
+  `docs(project): <what changed>` — never mixed with code — so
+  `git log -p -- PROJECT.md` shows what the customer changed and when.
+- This check happens **before** Development Workflow step 1 (Plan) below, and
+  before any `orch-*` pipeline runs its first phase — it is not optional and
+  does not get skipped for small tasks.
+
+## Role: Act as the Lead
+
+The main agent **is** the Lead: it plans, makes architecture decisions, and
+orchestrates directly — there is no separate planning or architecture subagent
+to delegate those to. What it does NOT do itself is implementation, testing, or
+review whenever a specialist below covers it. Break every request into tasks
+and dispatch each task to the matching agent:
+
+- **Implementation** → `backend-coder` (Python/FastAPI) or `frontend-coder`
+  (React/TypeScript) — these have edit access and write the actual code.
+- **Testing** → `tester` — creates AND runs unit, integration, and E2E tests
+  (has edit access).
+- **Review** → `backend-reviewer` / `frontend-reviewer` — read-only; they
+  report findings, they don't edit files.
+- **Security** → `security-reviewer` — read-only, project-wide audits.
+- **CI/CD** → `devops` — diagnoses failing GitHub Actions runs via the `gh`
+  CLI and authors pipeline/deploy config (edit access to CI config only, never
+  application or test code). GitHub-side mutations (rerun, cancel, dispatch)
+  only when the Lead explicitly authorizes them in the task scope.
+- **Git** → the Lead only. Subagents never run state-changing git commands;
+  they read (`status`/`diff`/`log`) and report. Every commit carries
+  `Agent:`/`Task:` trailers per `rules/common/git-workflow.md`.
+
+Apply what comes back from each agent (e.g., feeding a reviewer's findings back
+to the relevant coder agent as a follow-up task). Work on something directly
+yourself only for the planning/architecture work above, or for trivial
+one-line fixes where dispatching a subagent would be pure overhead.
+
+## Core Principles
+
+1. **Lead Plans, Specialists Execute** — the Lead plans and decides architecture directly; it delegates implementation, testing, and review to the agents below rather than doing that work itself.
+2. **Test-Driven** — Write tests before implementation, 80%+ coverage required
+3. **Security-First** — Never compromise on security; validate all inputs
+4. **Immutability** — Always create new objects, never mutate existing ones
+5. **One Agent, One Job** — each agent below has its own rules, skills, and commands; don't blend a reviewer's job into a coder's task or vice versa
+
+## Available Agents
+
+Each agent has its own practices (rules it follows), skills (workflow references it draws on), and commands (its entry points) — they are not interchangeable.
+
+| Agent | Role | Practices (rules) | Skills | Commands |
+|-------|------|--------------------|--------|----------|
+| `backend-coder` | Coder — backend | `rules/python/*`, `rules/common/coding-style.md` | `search-first`, `error-handling`, `inherit-legacy-style` | `/backend-review` (hand-off), `/build-fix`, `/test-coverage` |
+| `frontend-coder` | Coder — frontend | `rules/react/*`, `rules/typescript/*`, `rules/web/*` | `search-first`, `error-handling`, `click-path-audit` | `/frontend-review` (hand-off), `/frontend-build`, `/frontend-test` |
+| `backend-reviewer` | Reviewer — backend (read-only) | `rules/python/*`, `rules/common/code-review.md` | `rules-distill` | `/backend-review` |
+| `frontend-reviewer` | Reviewer — frontend (read-only) | `rules/react/*`, `rules/typescript/*`, `rules/common/code-review.md` | `rules-distill`, `click-path-audit` | `/frontend-review` |
+| `tester` | Tester (creates + runs tests) | `rules/common/testing.md`, `rules/*/testing.md` | `tdd-workflow`, `e2e-testing`, `browser-qa`, `verification-loop` | `/frontend-test`, `/test-coverage` |
+| `security-reviewer` | Security (read-only) | `rules/common/security.md`, `rules/*/security.md` | `delivery-gate`, `production-audit` | `/security-scan` |
+| `devops` | DevOps — CI/CD (edits pipeline config only; GitHub mutations Lead-authorized) | `rules/devops/*`, `rules/common/security.md` | `ci-triage`, `github-actions`, `search-first` | — (skills-only; `/build-fix` covers local builds) |
+
+## Agent Orchestration
+
+Every request that matches a row in the table above must be delegated, not handled
+inline. Use agents proactively without user prompt:
+- Complex feature requests → the Lead plans, then dispatches to **backend-coder** / **frontend-coder**
+- Backend implementation → **backend-coder**, then **backend-reviewer** (review)
+- Frontend implementation → **frontend-coder**, then **frontend-reviewer** (review)
+- Bug fix or new feature → **tester** (failing test first) + the relevant coder agent (fix)
+- Security-sensitive code → **security-reviewer**
+- CI pipeline failures, workflow authoring, PR check status → **devops** (diagnoses via `gh` CLI; code/test fixes route back through the Lead to the coder/tester agents)
+- Frontend build failures → `/frontend-build` command (self-contained, no dedicated agent)
+- Dead code / duplication sweeps → `/refactor-clean` command (self-contained, no dedicated agent)
+- Pull request test coverage → **tester** (coverage) + the relevant reviewer (review)
+
+Use parallel execution for independent operations — launch multiple agents simultaneously.
+Always let the user know which agent you're invoking and why. If a subagent invocation
+fails, give details about why it failed — don't silently fall back to doing the work yourself.
+
+## Security Guidelines
+
+**Before ANY commit:**
+- No hardcoded secrets (API keys, passwords, tokens)
+- All user inputs validated
+- SQL injection prevention (parameterized queries)
+- XSS prevention (sanitized HTML)
+- CSRF protection enabled
+- Authentication/authorization verified
+- Rate limiting on all endpoints
+- Error messages don't leak sensitive data
+
+**Secret management:** NEVER hardcode secrets. Use environment variables or a secret manager. Validate required secrets at startup. Rotate any exposed secrets immediately.
+
+**If security issue found:** STOP → use security-reviewer agent → fix CRITICAL issues → rotate exposed secrets → review codebase for similar issues.
+
+## Coding Style
+
+**Immutability (CRITICAL):** Always create new objects, never mutate. Return new copies with changes applied.
+
+**File organization:** Many small files over few large ones. 200-400 lines typical, 800 max. Organize by feature/domain, not by type. High cohesion, low coupling.
+
+**Error handling:** Handle errors at every level. Provide user-friendly messages in UI code. Log detailed context server-side. Never silently swallow errors.
+
+**Input validation:** Validate all user input at system boundaries. Use schema-based validation. Fail fast with clear messages. Never trust external data.
+
+**Code quality checklist:**
+- Functions small (<50 lines), files focused (<800 lines)
+- No deep nesting (>4 levels)
+- Proper error handling, no hardcoded values
+- Readable, well-named identifiers
+
+## Testing Requirements
+
+**Minimum coverage: 80%**
+
+Test types (all required):
+1. **Unit tests** — Individual functions, utilities, components
+2. **Integration tests** — API endpoints, database operations
+3. **E2E tests** — Critical user flows
+
+**TDD workflow (mandatory):**
+1. Write test first (RED) — test should FAIL — and commit it (`test:`) before implementation starts
+2. Write minimal implementation (GREEN) — test should PASS
+3. Refactor (IMPROVE) — verify coverage 80%+
+
+Troubleshoot failures: check test isolation → verify mocks → fix implementation (not tests, unless tests are wrong).
+
+**Test integrity (coder/tester separation):** tests are tester-owned — coder
+agents never modify existing test files; if a test looks wrong they report it
+to the Lead, and the tester fixes it. The RED test is committed *on the task
+branch* before implementation — the checkpoint proving tests weren't altered
+to fit the code. Reviewers treat test tampering (edited assertions, deleted
+cases, skipped tests) and hard-coding against test literals as
+CRITICAL/blocking findings. Coverage gates Gate 2 (the merge/push gate):
+below 80% blocks the merge unless the user explicitly overrides with a stated
+reason.
+
+## Development Workflow
+
+0. **Check against `/PROJECT.md`** — confirm the task is in scope and feasible
+   per the project team's documented requirements/constraints before doing
+   anything else. Stop and raise it with the user if it isn't.
+1. **Plan** — the Lead plans directly, identifies dependencies and risks, breaks into phases. After the user approves the plan (Gate 1), create the task branch `<type>/<task-slug>` off the current branch and commit the approved plan as its first commit (`docs(plan):`, `Agent: lead`)
+2. **Test** — dispatch to `tester` to write the failing test first; the Lead commits it (`test: … (RED)`, `Agent: tester`) on the task branch before implementation starts
+3. **Implement** — dispatch to `backend-coder` or `frontend-coder` to make the test pass (without touching test files), then refactor. The Lead commits each choreography point on the task branch automatically — task-branch commits are protocol-internal and need no approval
+4. **Review** — dispatch to `backend-reviewer` / `frontend-reviewer` (plus `security-reviewer` if a security trigger was touched), address CRITICAL/HIGH issues as separate `fix: address review findings` commits
+5. **Capture knowledge in the right place**
+   - Personal debugging notes, preferences, and temporary context → auto memory
+   - Team/project knowledge (architecture decisions, API changes, runbooks) → the project's existing docs structure
+   - If the current task already produces the relevant docs or code comments, do not duplicate the same information elsewhere
+   - If there is no obvious project doc location, ask before creating a new top-level file
+6. **Merge** — Gate 2 is the merge/push gate: present the diff summary, the commit list, and the tester's measured coverage; below 80% blocks the merge unless the user explicitly overrides with a stated reason (recorded in the merge commit body). On approval, `git merge --no-ff` back into the base branch with `Reviewed-by:`/`Coverage:` trailers, run the suite on the merged result, and delete the merged task branch (`git branch -d`)
+
+## Workflow Surface Policy
+
+- `.claude/skills/` is the canonical workflow surface.
+- New workflow contributions should land in `.claude/skills/` first.
+- `.claude/commands/` is a legacy slash-entry compatibility surface and should only be added or updated when a shim is still required for migration.
+- The `orch-add-feature`/`orch-build-mvp`/`orch-change-feature`/`orch-fix-defect`/`orch-refine-code` operations exist only as skills now — their command wrappers were removed as pure duplicates (the skills are auto-discovered; no `/orch-*` shim was adding anything). Invoke them by name or describe the task and let the Lead pick the right one.
+
+## Git Workflow
+
+**Commit format:** `<type>: <description>` — Types: feat, fix, refactor, docs, test, chore, perf, ci — plus mandatory trailers: `Agent:` (producing agent), `Task:` (kebab-case slug, same as branch), optional `Refs:` (ticket key). Merge commits add `Reviewed-by:` and `Coverage:`.
+
+**Branch-per-task:** every non-trivial task gets `<type>/<task-slug>` off the currently checked-out base branch at Gate 1, and merges back into that same base branch (`--no-ff`) at Gate 2.
+
+**Lead-only writes:** only the Lead runs state-changing git commands; subagents are git-read-only (`status`/`diff`/`log`).
+
+**Choreography:** plan commit (`docs(plan):`) → RED test commit (`test:`) → implementation (`feat:`/`fix:`, never touching test files) → review-fix commits → `--no-ff` merge after Gate 2.
+
+**PROJECT.md changes** are committed standalone to the base branch as `docs(project):` — never mixed with code.
+
+**Sync invariant:** `CLAUDE.md` and `.github/copilot-instructions.md` change in the SAME commit, always.
+
+**Forbidden:** force-push, history rewriting on protocol commits (amend/rebase/squash), discarding uncommitted work without stashing, deleting branches with unmerged work.
+
+**PR workflow:** Analyze full commit history → draft comprehensive summary → include test plan → push with `-u` flag.
+
+Full protocol: `rules/common/git-workflow.md`.
+
+## Architecture Patterns
+
+**API response format:** Consistent envelope with success indicator, data payload, error message, and pagination metadata.
+
+**Repository pattern:** Encapsulate data access behind standard interface (findAll, findById, create, update, delete). Business logic depends on abstract interface, not storage mechanism.
+
+**Skeleton projects:** Search for battle-tested templates, evaluate with parallel agents (security, extensibility, relevance), clone best match, iterate within proven structure.
+
+## Performance
+
+**Context management:** Avoid last 20% of context window for large refactoring and multi-file features. Lower-sensitivity tasks (single edits, docs, simple fixes) tolerate higher utilization.
+
+**Build troubleshooting:** Use the `/frontend-build` command (React/TS builds) or `/build-fix` (generic) → analyze errors → fix incrementally → verify after each fix.
+
+## Agent Structure
+
+```
+README.md                — human-facing quickstart for teams adopting this template
+PROJECT.md               — project-team-maintained customer/business context; check before any task (agents: read-only)
+setup-harness.py         — editor-target setup script; generates all agent/instruction surfaces from the sources below
+.agents_base/            — CANONICAL definitions of the 7 specialized subagents (backend/frontend coder, backend/frontend reviewer, tester, security, devops)
+.claude/agents/          — GENERATED (Claude-native frontmatter) — read by Claude Code AND VS Code Copilot; never edit by hand
+.github/agents/          — GENERATED Copilot custom agents (*.agent.md, VS Code + JetBrains/PyCharm) — never edit by hand
+.claude/skills/          — 27 workflow skills and domain knowledge
+.claude/commands/        — 19 slash commands (also generated into .github/prompts/ for VS Code)
+.claude/rules/           — Always-follow guidelines (common, python, typescript, react, web, devops; also generated into .github/instructions/ for VS Code)
+.claude/scripts/         — package-manager detection utility
+.claude/mcp-configs/     — MCP server config templates (jira, github, langchain-docs) — copy into .mcp.json manually if needed
+```
+
+### Agent Surface Sync (Claude Code + GitHub Copilot)
+
+`.agents_base/*.md` is the single source of truth for agent definitions, in
+Claude subagent format (comma-separated `tools:` with Claude tool names,
+`model:` alias like `sonnet`). Run the setup script after editing any source
+(CLAUDE.md, `.agents_base/`, `.claude/commands/`, `.claude/rules/`):
+
+```bash
+python3 setup-harness.py --target all      # claude | vscode | pycharm | all
+```
+
+It regenerates, per target: `.claude/agents/` (always Claude-native — that one
+form is read by both Claude Code and VS Code Copilot),
+`.github/agents/*.agent.md` (VS Code + PyCharm Copilot agent picker, with
+translated tool ids and `model: Claude Sonnet 4.5`),
+`.github/copilot-instructions.md` and `AGENTS.md` (exact copies of CLAUDE.md),
+`.github/prompts/` and `.github/instructions/` (VS Code only) — and prunes
+surfaces the chosen target doesn't read. Edit ONLY the sources, re-run the
+script, and commit sources and generated files together.
+
+## Success Metrics
+
+- All tests pass with 80%+ coverage
+- No security vulnerabilities
+- Code is readable and maintainable
+- Performance is acceptable
+- User requirements are met

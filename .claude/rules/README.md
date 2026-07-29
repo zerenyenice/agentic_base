@@ -18,7 +18,8 @@ rules/
 ├── python/          # Python / FastAPI specific
 ├── typescript/      # TypeScript/JavaScript specific
 ├── react/           # React specific
-└── web/             # Web and frontend specific
+├── web/             # Web and frontend specific
+└── devops/          # CI/CD, GitHub Actions, pipeline security (owner: devops agent)
 ```
 
 - **common/** contains universal principles — no language-specific code examples.
