@@ -40,6 +40,12 @@ hand-edit generated files** (`.claude/agents/`, `.github/agents/`,
 other sources instead. After running it, reload your editor and the seven
 agents appear in Copilot Chat's agents dropdown.
 
+> **The template ships Claude-only** — out of the box only `.claude/` surfaces
+> are committed. Picking `vscode`, `pycharm`, or `all` generates the Copilot
+> surfaces under `.github/` (+ `AGENTS.md`); commit them in your project copy
+> and update the `harness-sync` job's target in `.github/workflows/ci.yml` to
+> match (see `docs/CI.md`).
+
 The script ends with a **GitHub access check**: the devops agent and the
 `/pr` workflow talk to GitHub's API through the `gh` CLI, which needs a
 one-time, per-machine login. If the check reports `gh` missing or

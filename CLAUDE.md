@@ -195,7 +195,7 @@ reason.
 
 **PROJECT.md changes** are committed standalone to the base branch as `docs(project):` — never mixed with code.
 
-**Sync invariant:** `CLAUDE.md` and `.github/copilot-instructions.md` change in the SAME commit, always.
+**Sync invariant:** `CLAUDE.md` and `.github/copilot-instructions.md` change in the SAME commit whenever the project carries generated Copilot surfaces (target vscode/pycharm/all). The Claude-only base ships none — there the invariant is satisfied by regenerating with `--target claude`.
 
 **Forbidden:** force-push, history rewriting on protocol commits (amend/rebase/squash), discarding uncommitted work without stashing, deleting branches with unmerged work.
 
@@ -225,7 +225,7 @@ PROJECT.md               — project-team-maintained customer/business context; 
 setup-harness.py         — editor-target setup script; generates all agent/instruction surfaces from the sources below
 .agents_base/            — CANONICAL definitions of the 7 specialized subagents (backend/frontend coder, backend/frontend reviewer, tester, security, devops)
 .claude/agents/          — GENERATED (Claude-native frontmatter) — read by Claude Code AND VS Code Copilot; never edit by hand
-.github/agents/          — GENERATED Copilot custom agents (*.agent.md, VS Code + JetBrains/PyCharm) — never edit by hand
+.github/agents/          — GENERATED Copilot custom agents — NOT in the Claude-only base; created (with prompts/, instructions/, AGENTS.md, copilot-instructions.md) when a project runs a vscode/pycharm/all target; never edit by hand
 .claude/skills/          — 28 workflow skills and domain knowledge
 .claude/commands/        — 19 slash commands (also generated into .github/prompts/ for VS Code)
 .claude/rules/           — Always-follow guidelines (common, python, typescript, react, web, devops; also generated into .github/instructions/ for VS Code)
@@ -252,6 +252,12 @@ translated tool ids and `model: Claude Sonnet 4.5`),
 `.github/prompts/` and `.github/instructions/` (VS Code only) — and prunes
 surfaces the chosen target doesn't read. Edit ONLY the sources, re-run the
 script, and commit sources and generated files together.
+
+**The base template ships in the `claude` target state** — only `.claude/`
+surfaces are committed; no Copilot surfaces exist until a project picks a
+vscode/pycharm/all target, runs the script, commits the generated `.github/`
+surfaces, and updates the `harness-sync` CI job's target to match (see
+`docs/CI.md`).
 
 ## Success Metrics
 
