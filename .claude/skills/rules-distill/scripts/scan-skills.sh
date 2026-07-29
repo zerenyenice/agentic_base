@@ -58,6 +58,7 @@ scan_dir_to_json() {
   local tmpdir
   tmpdir=$(mktemp -d)
   local _scan_tmpdir="$tmpdir"
+  # shellcheck disable=SC2329  # invoked via the trap on RETURN below
   _scan_cleanup() { rm -rf "$_scan_tmpdir"; }
   trap _scan_cleanup RETURN
 

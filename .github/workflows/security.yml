@@ -1,0 +1,52 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [main, dev, stage]
+  push:
+    branches: [main, dev, stage]
+  schedule:
+    # Weekly full-history re-scan (Mondays 03:00 UTC). Gitleaks' detection
+    # rules are updated upstream between the version bumps Dependabot pulls
+    # in for us, and a leak from before a rule existed only surfaces on a
+    # re-scan of full history, not on the diff of a quiet week. Owner: devops.
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Personal repo — no GITLEAKS_LICENSE / org features needed, the OSS CLI
+  # covers full-history secret scanning. Binary is downloaded from GitHub
+  # Releases and checksum-verified rather than trusted from a wrapper action.
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Download and checksum-verify gitleaks
+        run: |
+          set -euo pipefail
+          asset="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o "$asset" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${asset}"
+          echo "${GITLEAKS_SHA256}  ${asset}" | sha256sum -c -
+          tar -xzf "$asset" gitleaks
+          ./gitleaks version
+
+      - name: Scan full git history for secrets
+        run: ./gitleaks detect --source . --log-opts="--all" --redact -v
