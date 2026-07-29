@@ -50,7 +50,10 @@ Refs: PROJ-123
 ```
 
 Merge commits additionally carry `Reviewed-by:` (which reviewer agents
-approved) and `Coverage:` (the tester's measured number presented at Gate 2):
+approved) and `Coverage:` (the tester's measured number presented at Gate 2).
+Under the PR flow these always appear in the PR description; when the Lead
+merges via `gh pr merge --merge` they are also written into the merge commit
+body (a UI merge keeps them in the PR only — still durable and linked):
 
 ```
 Task: user-registration
@@ -71,10 +74,12 @@ a branch `<type>/<task-slug>` (`feat/user-registration`,
 created when the user approves the plan (Gate 1).
 
 - **The base branch is whatever branch is checked out when the task is
-  accepted** — typically `main`, but a team's `develop` or a long-lived
-  feature branch works the same. The task branch forks from it and, at Gate 2,
-  merges back **into that same base branch, locally**. Do not hardcode `main`
-  as the merge target.
+  accepted** — typically `dev`, but a team's `develop` or a long-lived
+  feature branch works the same. The task branch forks from it, the task
+  **completes on that branch locally**, and — only when the user, having
+  checked the result, says so — the branch is pushed and a **PR targeting
+  that same base branch** is opened. Do not hardcode a branch name as the
+  merge target, and never merge the task branch into the base locally.
 - **Dirty-tree rule:** if the working tree has uncommitted changes when a task
   is accepted, the Lead must NOT carry them onto the task branch —
   `git stash -u` them (restoring after returning to the base branch) or ask
@@ -94,10 +99,11 @@ lands as separate commits on the same branch).
 - Never `commit --amend`, `rebase`, or squash commits the protocol depends on
   (RED commits, plan commits, review-fix commits) — rewriting history destroys
   the evidence.
-- Merge task branches with `git merge --no-ff` so each task's internal
-  sequence stays visible from the base branch. (Teams whose remotes enforce
-  squash-merge PRs may deviate; the sequence must remain verifiable in the
-  PR/branch history.)
+- Task branches land in the base branch via **PR merge commits** (GitHub's
+  "Create a merge commit" method — always non-fast-forward), so each task's
+  internal sequence stays visible from the base branch. **Squash-merge and
+  rebase-merge are forbidden for protocol branches** — they are history
+  rewriting by another name and destroy the RED→GREEN evidence.
 - To update a stale task branch, **merge the base branch into it** — never
   rebase the task branch onto the base.
 
@@ -105,25 +111,37 @@ lands as separate commits on the same branch).
 new commits while the task branch was in flight (the user or another merged
 task moved it), the Lead first merges the base branch *into* the task branch
 (never rebase), resolves conflicts there, re-runs the full test suite on the
-task branch, and only then proceeds to the Gate 2 merge. After ANY merge into
-the base branch, run the suite once on the merged result before declaring the
-task done — two individually green branches can still merge into a broken
-state.
+task branch, and only then opens or refreshes the PR. After the PR merges,
+CI re-runs the suite on the base branch via the push trigger; the Lead pulls
+the merged base and confirms that run is green before declaring the task
+done — two individually green branches can still merge into a broken state.
 
-**Branch hygiene.** After a Gate 2 merge, delete the merged task branch
-(`git branch -d <branch>` — `-d`, never `-D`). The base branch plus live task
-branches is the steady state.
+**Branch hygiene.** After the PR merges, delete the remote task branch (via
+the PR's delete-branch option or `git push origin --delete <branch>`), pull
+the base branch, and delete the local task branch (`git branch -d <branch>`
+— `-d`, never `-D`). The base branch plus live task branches is the steady
+state.
 
 ## The Gates
 
 - **Commits on a task branch are protocol-internal** — the Lead makes them
   automatically at the choreography points below, without asking. A task
   branch is cheap to discard, so this is safe.
-- **GATE 2 is the merge/push gate**: before merging the task branch back into
-  its base branch (or pushing / opening a PR), present the diff summary, the
-  commit list, and the tester's measured coverage; wait for user confirmation.
-  Coverage <80% blocks unless the user explicitly overrides with a stated
-  reason (record the override in the merge commit body).
+- **GATE 2 is the hand-off gate, in two user-controlled steps:**
+  1. **Completion report** — the task ENDS on its local task branch: nothing
+     pushed, no PR, no local merge. The Lead presents the branch name, the
+     commit list, the diff summary, and the tester's measured coverage, then
+     stops. The user inspects the branch at their own pace (checkout, run,
+     read).
+  2. **PR on instruction** — only when the user says to open the PR does the
+     Lead push the branch (`-u`) and create the PR targeting the base branch
+     (see Pull Request Workflow below). Required CI checks run on the PR; the
+     user merges it on GitHub — or explicitly tells the Lead to merge — using
+     a **merge commit** (never squash/rebase).
+
+  Coverage <80% blocks step 2 unless the user explicitly overrides with a
+  stated reason (record the override in the PR description and merge commit
+  body).
 
 **Trivial-tier exception.** For trivial tasks (per the orch-pipeline size
 classifier), the Lead MAY commit to a short-lived task branch and merge
@@ -160,7 +178,8 @@ Never skip trailers.
   | 3 | GREEN: implementation | `feat:` | coder agent | diff MUST NOT touch test files |
   | 4 | Refactor (optional) | `refactor:` | coder agent | tests stay green |
   | 5 | Review fixes (if findings) | `fix: address review findings` | coder agent | see B7 |
-  | 6 | Merge after GATE 2 | `--no-ff` merge | — | `Reviewed-by:`/`Coverage:` trailers |
+  | 6 | Task ends on the branch | — | — | GATE 2 step 1: completion report, wait for user |
+  | 7 | Push + PR on user instruction | PR merge commit | — | GATE 2 step 2: `Reviewed-by:`/`Coverage:` in PR body (and merge commit body when the Lead merges via `gh pr merge --merge`) |
 
 - **B4. Bug fix** — same as B3 with: the RED commit is the *regression test*
   reproducing the bug (`test: reproduce <bug> (RED)`); implementation commit
@@ -188,7 +207,7 @@ Never skip trailers.
   as `fix(security): <desc>`. Secret-in-history incidents follow the incident
   protocol below. The staged-diff secret scan runs before every commit.
 - **B9. MVP / vertical slices** — each slice is its own task branch and its
-  own Gate 2 merge (`feat/mvp-slice-1-<slug>` …). The spec ingestion may
+  own Gate 2 PR (`feat/mvp-slice-1-<slug>` …). The spec ingestion may
   produce a `docs(plan): mvp slice map` commit on the base branch
   (user-approved) so the slice plan itself is versioned. One slice merged =
   one working increment on the base branch.
@@ -251,13 +270,17 @@ git log -p -- PROJECT.md             # requirement evolution over time
 
 ## Pull Request Workflow
 
-When creating PRs:
+The PR is Gate 2 step 2 — created only on the user's instruction, after they
+have checked the completed task branch. When creating PRs:
 1. Analyze full commit history (not just latest commit)
 2. Use `git diff [base-branch]...HEAD` to see all changes
-3. Draft comprehensive PR summary
+3. Draft comprehensive PR summary (include `Reviewed-by:` verdicts and the
+   measured coverage — the PR body is the durable Gate 2 record)
 4. Include test plan with TODOs
-5. Push the task branch with `-u` flag if new branch; the PR targets the
-   task's base branch
+5. Push the task branch with `-u` flag; the PR targets the task's base branch
+6. The user merges on GitHub (or explicitly instructs the Lead to
+   `gh pr merge --merge`) — merge commit only, never squash/rebase — then
+   branch hygiene applies (see Branching above)
 
 > For the full development process (planning, TDD, code review) before git operations,
 > see [development-workflow.md](development-workflow.md).

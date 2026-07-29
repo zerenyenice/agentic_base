@@ -174,7 +174,7 @@ reason.
    - Team/project knowledge (architecture decisions, API changes, runbooks) → the project's existing docs structure
    - If the current task already produces the relevant docs or code comments, do not duplicate the same information elsewhere
    - If there is no obvious project doc location, ask before creating a new top-level file
-6. **Merge** — Gate 2 is the merge/push gate: present the diff summary, the commit list, and the tester's measured coverage; below 80% blocks the merge unless the user explicitly overrides with a stated reason (recorded in the merge commit body). On approval, `git merge --no-ff` back into the base branch with `Reviewed-by:`/`Coverage:` trailers, run the suite on the merged result, and delete the merged task branch (`git branch -d`)
+6. **Hand-off & PR (Gate 2, two user-controlled steps)** — the task ends on its local task branch: nothing pushed, no PR, no local merge. Step 1: present the branch name, commit list, diff summary, and the tester's measured coverage (below 80% blocks step 2 unless the user explicitly overrides with a stated reason), then stop — the user inspects the branch. Step 2: only when the user says so, push the branch (`-u`) and open a PR to the base branch with a comprehensive body (`Reviewed-by:` + coverage); CI checks run on the PR; the user merges on GitHub (or explicitly instructs the Lead to `gh pr merge --merge`) — merge commit only, never squash/rebase. Afterwards: pull the base, confirm the post-merge CI run, delete remote + local task branches
 
 ## Workflow Surface Policy
 
@@ -187,11 +187,11 @@ reason.
 
 **Commit format:** `<type>: <description>` — Types: feat, fix, refactor, docs, test, chore, perf, ci — plus mandatory trailers: `Agent:` (producing agent), `Task:` (kebab-case slug, same as branch), optional `Refs:` (ticket key). Merge commits add `Reviewed-by:` and `Coverage:`.
 
-**Branch-per-task:** every non-trivial task gets `<type>/<task-slug>` off the currently checked-out base branch at Gate 1, and merges back into that same base branch (`--no-ff`) at Gate 2.
+**Branch-per-task:** every non-trivial task gets `<type>/<task-slug>` off the currently checked-out base branch at Gate 1; the task completes on that branch locally, and lands in the base branch via a **user-triggered PR** at Gate 2 (never a local merge).
 
 **Lead-only writes:** only the Lead runs state-changing git commands; subagents are git-read-only (`status`/`diff`/`log`).
 
-**Choreography:** plan commit (`docs(plan):`) → RED test commit (`test:`) → implementation (`feat:`/`fix:`, never touching test files) → review-fix commits → `--no-ff` merge after Gate 2.
+**Choreography:** plan commit (`docs(plan):`) → RED test commit (`test:`) → implementation (`feat:`/`fix:`, never touching test files) → review-fix commits → task ends on the branch (Gate 2 step 1: completion report) → push + PR on user instruction (Gate 2 step 2) → PR merge commit (never squash/rebase).
 
 **PROJECT.md changes** are committed standalone to the base branch as `docs(project):` — never mixed with code.
 

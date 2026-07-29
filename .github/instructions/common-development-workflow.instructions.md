@@ -55,13 +55,19 @@ The Feature Implementation Workflow describes the development pipeline: research
    - Address CRITICAL and HIGH issues — as separate `fix: address review findings` commits
    - Fix MEDIUM issues when possible
 
-5. **Merge & Push (Gate 2)**
-   - Gate 2 is the merge/push gate: present the diff summary, the commit list,
-     and the tester's measured coverage; below 80% blocks unless the user
-     explicitly overrides with a stated reason
-   - On approval: `git merge --no-ff` back into the base branch with
-     `Reviewed-by:`/`Coverage:` trailers, run the suite on the merged result,
-     delete the merged task branch
+5. **Hand-off & PR (Gate 2, two user-controlled steps)**
+   - **Step 1 — completion report:** the task ends on its local task branch —
+     nothing pushed, no PR, no local merge. Present the branch name, commit
+     list, diff summary, and the tester's measured coverage; below 80% blocks
+     step 2 unless the user explicitly overrides with a stated reason. The
+     user inspects the branch at their own pace.
+   - **Step 2 — PR on instruction:** when the user says to open the PR, push
+     the branch (`-u`) and create a PR targeting the base branch with a
+     comprehensive body (`Reviewed-by:` verdicts + coverage). CI checks run on
+     the PR; the user merges on GitHub (or explicitly instructs the Lead to
+     `gh pr merge --merge`) — merge commit only, never squash/rebase
+   - After the merge: pull the base branch, confirm the post-merge CI run is
+     green, delete remote + local task branches
    - Detailed commit messages, conventional commits format, `Agent:`/`Task:` trailers
    - See [git-workflow.md](git-workflow.md) for the full git protocol and PR process
 
