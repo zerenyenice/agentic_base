@@ -5,7 +5,7 @@ setup-harness.py — configure this template for your editor / AI harness.
 The source-of-truth files are:
 
     CLAUDE.md            master instructions
-    .agents_base/        the 6 specialist agents (canonical, Claude-native form)
+    .agents_base/        the 7 specialist agents (canonical, Claude-native form)
     .claude/commands/    slash commands
     .claude/rules/       coding/testing/security standards
 
@@ -89,6 +89,7 @@ RULE_DIR_GLOBS = {
     "typescript": "**/*.ts,**/*.tsx,**/*.js,**/*.jsx",
     "react": "**/*.tsx,**/*.jsx",
     "web": "**/*.html,**/*.css,**/*.scss,**/*.ts,**/*.tsx,**/*.js,**/*.jsx",
+    "devops": ".github/workflows/**,**/Dockerfile*,**/docker-compose*.yml,**/docker-compose*.yaml",
 }
 
 FRONT_RE = re.compile(r"\A---\n(.*?)\n---\n?", re.S)

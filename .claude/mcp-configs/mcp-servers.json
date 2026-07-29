@@ -9,6 +9,16 @@
         "JIRA_API_TOKEN": "YOUR_JIRA_API_TOKEN_HERE"
       },
       "description": "Jira issue tracking — search, create, update, comment, transition issues"
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "description": "GitHub official MCP server (remote) — repos, issues, PRs, actions, code search; authenticates via OAuth on first use (/mcp)"
+    },
+    "langchain-docs": {
+      "type": "http",
+      "url": "https://docs.langchain.com/mcp",
+      "description": "LangChain documentation MCP server — search and read LangChain/LangGraph docs"
     }
   },
   "_comments": {
