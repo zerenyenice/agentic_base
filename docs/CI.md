@@ -35,14 +35,21 @@ in CI (the runner has no `gh auth login`) and does not fail the job — only
 **Reproduce locally:**
 
 ```bash
-python3 setup-harness.py --target all
+python3 setup-harness.py --target claude   # or your project's chosen target
 git status --porcelain    # must print nothing
 ```
 
 If it prints something, commit the sources and the regenerated files
 together in the same commit (`chore(process): ...`, per
-`rules/common/git-workflow.md` B11 — `CLAUDE.md` and
-`.github/copilot-instructions.md` must change together).
+`rules/common/git-workflow.md` B11).
+
+**Target note:** the base template ships Claude-only surfaces (`.claude/`).
+When a project copy adopts VS Code/PyCharm Copilot, run the script with that
+target, commit the generated `.github/` surfaces, and change the target in
+this job to match — the job must regenerate the same target the repo
+commits, or every run reports false drift. With a Copilot target, the B11
+sync invariant (`CLAUDE.md` ≡ `.github/copilot-instructions.md`) applies and
+this job enforces it mechanically.
 
 ### `lint-shell`
 
