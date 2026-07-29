@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           asset="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -sSL -o "$asset" \
+          curl -fsSL -o "$asset" \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${asset}"
           echo "${GITLEAKS_SHA256}  ${asset}" | sha256sum -c -
           tar -xzf "$asset" gitleaks
