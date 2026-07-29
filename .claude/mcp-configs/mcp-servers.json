@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "jira": {
+      "command": "uvx",
+      "args": ["mcp-atlassian==0.21.0"],
+      "env": {
+        "JIRA_URL": "YOUR_JIRA_URL_HERE",
+        "JIRA_EMAIL": "YOUR_JIRA_EMAIL_HERE",
+        "JIRA_API_TOKEN": "YOUR_JIRA_API_TOKEN_HERE"
+      },
+      "description": "Jira issue tracking — search, create, update, comment, transition issues"
+    }
+  },
+  "_comments": {
+    "usage": "Copy this server to your ~/.claude.json (or project .mcp.json) mcpServers section to enable /jira",
+    "env_vars": "Replace YOUR_*_HERE placeholders with actual values, or set JIRA_URL/JIRA_EMAIL/JIRA_API_TOKEN as environment variables instead"
+  }
+}
