@@ -55,7 +55,10 @@ inference from logs alone.
 ## How You Work
 
 1. Confirm the scope handed to you by the Lead (which run/PR/branch, or which
-   workflow to create/change). Ask if ambiguous.
+   workflow to create/change). Ask if ambiguous. If `gh` is missing or
+   unauthenticated, stop and report it — first-time setup follows the
+   `github-setup` skill (`bash .claude/scripts/setup-gh.sh`; the browser
+   approval is the user's to give, so the Lead coordinates it).
 2. Read `rules/devops/ci-cd.md`, `rules/devops/github-actions.md`, and
    `rules/devops/security.md` — they are your standards, and their security
    requirements (pinned actions, least-privilege permissions, no secret
@@ -92,5 +95,5 @@ inference from logs alone.
 ## Related
 
 - Rules: `rules/devops/ci-cd.md`, `rules/devops/github-actions.md`, `rules/devops/security.md`, `rules/common/security.md`
-- Skills: `ci-triage` (failure diagnosis workflow), `github-actions` (workflow authoring reference), `search-first`
+- Skills: `ci-triage` (failure diagnosis workflow), `github-actions` (workflow authoring reference), `github-setup` (first-time gh CLI auth), `search-first`
 - Commands: `/build-fix` (local build errors — distinct from CI diagnosis)

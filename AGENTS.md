@@ -3,7 +3,7 @@
 This project's `.claude/` setup (agents, commands, skills, rules) is trimmed for a
 three-person engineering team — **Lead**, **Coder** (backend Python/FastAPI +
 frontend React/TypeScript), **Tester** (testing + security) — providing 7
-specialized agents, 27 skills, and 19 commands for software development. This
+specialized agents, 28 skills, and 19 commands for software development. This
 setup is meant to be reused across project teams; each team's actual customer
 and business context lives in `/PROJECT.md`, not in this file.
 
@@ -82,7 +82,7 @@ Each agent has its own practices (rules it follows), skills (workflow references
 | `frontend-reviewer` | Reviewer — frontend (read-only) | `rules/react/*`, `rules/typescript/*`, `rules/common/code-review.md` | `rules-distill`, `click-path-audit` | `/frontend-review` |
 | `tester` | Tester (creates + runs tests) | `rules/common/testing.md`, `rules/*/testing.md` | `tdd-workflow`, `e2e-testing`, `browser-qa`, `verification-loop` | `/frontend-test`, `/test-coverage` |
 | `security-reviewer` | Security (read-only) | `rules/common/security.md`, `rules/*/security.md` | `delivery-gate`, `production-audit` | `/security-scan` |
-| `devops` | DevOps — CI/CD (edits pipeline config only; GitHub mutations Lead-authorized) | `rules/devops/*`, `rules/common/security.md` | `ci-triage`, `github-actions`, `search-first` | — (skills-only; `/build-fix` covers local builds) |
+| `devops` | DevOps — CI/CD (edits pipeline config only; GitHub mutations Lead-authorized) | `rules/devops/*`, `rules/common/security.md` | `ci-triage`, `github-actions`, `github-setup`, `search-first` | — (skills-only; `/build-fix` covers local builds) |
 
 ## Agent Orchestration
 
@@ -226,10 +226,10 @@ setup-harness.py         — editor-target setup script; generates all agent/ins
 .agents_base/            — CANONICAL definitions of the 7 specialized subagents (backend/frontend coder, backend/frontend reviewer, tester, security, devops)
 .claude/agents/          — GENERATED (Claude-native frontmatter) — read by Claude Code AND VS Code Copilot; never edit by hand
 .github/agents/          — GENERATED Copilot custom agents (*.agent.md, VS Code + JetBrains/PyCharm) — never edit by hand
-.claude/skills/          — 27 workflow skills and domain knowledge
+.claude/skills/          — 28 workflow skills and domain knowledge
 .claude/commands/        — 19 slash commands (also generated into .github/prompts/ for VS Code)
 .claude/rules/           — Always-follow guidelines (common, python, typescript, react, web, devops; also generated into .github/instructions/ for VS Code)
-.claude/scripts/         — package-manager detection utility
+.claude/scripts/         — package-manager detection utility; setup-gh.sh (one-time GitHub CLI install + device-flow auth)
 .claude/mcp-configs/     — MCP server config templates (jira, github, langchain-docs) — copy into .mcp.json manually if needed
 ```
 

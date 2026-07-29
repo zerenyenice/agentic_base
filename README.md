@@ -37,8 +37,21 @@ The script is idempotent. Re-run it with the same target whenever you edit a
 source file, and commit sources and generated files together. **Never
 hand-edit generated files** (`.claude/agents/`, `.github/agents/`,
 `.github/copilot-instructions.md`, `AGENTS.md`) — edit `.agents_base/` and the
-other sources instead. After running it, reload your editor and the six
+other sources instead. After running it, reload your editor and the seven
 agents appear in Copilot Chat's agents dropdown.
+
+The script ends with a **GitHub access check**: the devops agent and the
+`/pr` workflow talk to GitHub's API through the `gh` CLI, which needs a
+one-time, per-machine login. If the check reports `gh` missing or
+unauthenticated, run:
+
+```bash
+bash .claude/scripts/setup-gh.sh
+```
+
+It installs `gh` if needed and starts the OAuth device flow (approve in your
+browser — your SSH keys stay the git push mechanism). Details, agent-driven
+and headless variants: `.claude/skills/github-setup/SKILL.md`.
 
 ## Quickstart — starting a new project
 
@@ -60,10 +73,17 @@ agents appear in Copilot Chat's agents dropdown.
    owner, tech lead, business analyst), not by agents. **Agents check every
    task against it and will refuse out-of-scope work**, and will tell you when
    a section they need is still an unfilled `[FILL FREELY]` placeholder.
-5. **Open Claude Code** (or Copilot Chat in VS Code/PyCharm) in the repo and
+5. **Set up GitHub access** (one-time per machine) so the devops agent and
+   the `/pr` workflow can reach GitHub's API:
+   ```bash
+   bash .claude/scripts/setup-gh.sh
+   ```
+   Skips instantly if `gh` is already authenticated; otherwise installs it
+   and walks you through the browser device-flow login.
+6. **Open Claude Code** (or Copilot Chat in VS Code/PyCharm) in the repo and
    describe your first task, e.g. *"add a user registration endpoint"*. The
    Lead takes it from there.
-6. *(Optional)* Enable the Jira integration by copying
+7. *(Optional)* Enable the Jira integration by copying
    `.claude/mcp-configs/mcp-servers.json` into your `.mcp.json` and filling in
    credentials.
 
